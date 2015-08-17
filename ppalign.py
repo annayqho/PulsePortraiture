@@ -71,7 +71,6 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     quiet=True suppresses output.
 
     """
-    # place = None # for some reason it's nan otherwise...
     datafiles = [datafile[:-1] for datafile in open(metafile, "r").readlines()]
     if outfile is None:
         outfile = metafile + ".algnd.fits"
@@ -79,27 +78,27 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     nchan,nbin = map(int, sub.Popen(shlex.split(vap_cmd), stdout=sub.PIPE
             ).stdout.readlines()[1].split()[-2:])
     model_data = load_data(initial_guess, dedisperse=True, dededisperse=False,
-            tscrunch=True, pscrunch=False, fscrunch=False, rm_baseline=True,
+            tscrunch=True, pscrunch=True, fscrunch=False, rm_baseline=True,
             flux_prof=False, refresh_arch=True, return_arch=True, quiet=quiet)
+    # get the number of polarization profiles
+    npol = model_data.arch.get_npol()
     model_port = (model_data.masks * model_data.subints)[0,0]
     count = 1
     while(niter):
         nsub = 0
         load_quiet = quiet
-        aligned_port = np.zeros((nchan,nbin))
-        total_weights = np.zeros((nchan,nbin))
+        # aligned_port = np.zeros((nchan,nbin))
+        aligned_subint = np.zeros((npol, nchan, nbin))
+        total_weights = np.zeros((npol, nchan,nbin))
         for ifile in xrange(len(datafiles)):
-            print(datafiles[ifile])
             data = load_data(datafiles[ifile], dedisperse=False,
                     tscrunch=False, pscrunch=False, fscrunch=False,
                     rm_baseline=True, quiet=load_quiet)
             DM_guess = data.DM
             for isub in data.ok_isubs:
-                print(isub)
                 port = data.subints[isub,0,data.ok_ichans[isub]]
                 freqs = data.freqs[isub,data.ok_ichans[isub]]
                 model = model_port[data.ok_ichans[isub]]
-                #print freqs-model_data.freqs[0,data.ok_ichans[isub]]
                 P = data.Ps[isub]
                 SNRs = data.SNRs[isub,0,data.ok_ichans[isub]]
                 errs = data.noise_stds[isub,0,data.ok_ichans[isub]]
@@ -123,24 +122,34 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                     results.scale_errs = np.array([results.scale_error])
                     results.covariance = 0.0
                 weights = np.outer(results.scales / errs**2, np.ones(nbin))
-                aligned_port[data.ok_ichans[isub]] += weights * \
-                        rotate_data(port, results.phase, results.DM, P, freqs,
-                                results.nu_ref)
-                total_weights[data.ok_ichans[isub]] +=  weights
+                # aligned_port[data.ok_ichans[isub]] += weights * \
+                #         rotate_data(port, results.phase, results.DM, P, freqs,
+                #                 results.nu_ref)
+                for i in range(0, npol):
+                    choose = data.subints[isub,i,data.ok_ichans[isub]]
+                    aligned_subint[i,data.ok_ichans[isub]] += weights * \
+                        rotate_data(choose,results.phase,results.DM,P,freqs,results.nu_ref)
+                    total_weights[i, data.ok_ichans[isub]] +=  weights
                 nsub += 1
             load_quiet = True
-        aligned_port[np.where(total_weights > 0)[0]] /= \
-                total_weights[np.where(total_weights > 0)[0]]
+        for i in range(0, npol):
+            aligned_subint[i,np.where(total_weights[i] > 0)[0]] /= \
+                total_weights[i,np.where(total_weights[i] > 0)[0]]
+        # aligned_port[np.where(total_weights > 0)[0]] /= \
+        #         total_weights[np.where(total_weights > 0)[0]]
+        aligned_port = aligned_subint[0,:,:]
         model_port = aligned_port
         niter -= 1
         count += 1
     if rot_phase:
-        aligned_port = rotate_data(aligned_port, rot_phase)
+        # aligned_port = rotate_data(aligned_port, rot_phase)
+        aligned_subint = rotate_data(aligned_subint, rot_phase)
     if place is not None:
         prof = aligned_port.mean(axis=0)
         delta = prof.max() * gaussian_profile(len(prof), place, 0.0001)
         phase = fit_phase_shift(prof, delta).phase
-        aligned_port = rotate_data(aligned_port, phase)
+        # aligned_port = rotate_data(aligned_port, phase)
+        aligned_subint = rotate_data(aligned_subint, rot_phase)
     arch = model_data.arch
     arch.tscrunch()
     # arch.pscrunch()
@@ -150,8 +159,8 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
             for ichan in xrange(model_data.arch.get_nchan()):
                 #subint.set_weight(ichan, weight)
                 prof = subint.get_Profile(ipol, ichan)
-                prof.get_amps()[:] = aligned_port[ichan]
-                if total_weights[ichan].sum() == 0.0:
+                prof.get_amps()[:] = aligned_subint[ipol, ichan]
+                if total_weights[ipol, ichan].sum() == 0.0:
                     subint.set_weight(ichan, 0.0)
     arch.unload(outfile)
     if not quiet: print "\nUnloaded %s.\n"%outfile
