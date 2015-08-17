@@ -71,6 +71,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     quiet=True suppresses output.
 
     """
+    # place = None # for some reason it's nan otherwise...
     datafiles = [datafile[:-1] for datafile in open(metafile, "r").readlines()]
     if outfile is None:
         outfile = metafile + ".algnd.fits"
@@ -78,22 +79,23 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     nchan,nbin = map(int, sub.Popen(shlex.split(vap_cmd), stdout=sub.PIPE
             ).stdout.readlines()[1].split()[-2:])
     model_data = load_data(initial_guess, dedisperse=True, dededisperse=False,
-            tscrunch=True, pscrunch=True, fscrunch=False, rm_baseline=True,
+            tscrunch=True, pscrunch=False, fscrunch=False, rm_baseline=True,
             flux_prof=False, refresh_arch=True, return_arch=True, quiet=quiet)
     model_port = (model_data.masks * model_data.subints)[0,0]
     count = 1
     while(niter):
-        print "Doing iteration %d..."%count
         nsub = 0
         load_quiet = quiet
         aligned_port = np.zeros((nchan,nbin))
         total_weights = np.zeros((nchan,nbin))
         for ifile in xrange(len(datafiles)):
+            print(datafiles[ifile])
             data = load_data(datafiles[ifile], dedisperse=False,
-                    tscrunch=False, pscrunch=True, fscrunch=False,
+                    tscrunch=False, pscrunch=False, fscrunch=False,
                     rm_baseline=True, quiet=load_quiet)
             DM_guess = data.DM
             for isub in data.ok_isubs:
+                print(isub)
                 port = data.subints[isub,0,data.ok_ichans[isub]]
                 freqs = data.freqs[isub,data.ok_ichans[isub]]
                 model = model_port[data.ok_ichans[isub]]
@@ -141,7 +143,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         aligned_port = rotate_data(aligned_port, phase)
     arch = model_data.arch
     arch.tscrunch()
-    arch.pscrunch()
+    # arch.pscrunch()
     arch.set_dispersion_measure(0.0)
     for subint in arch:
         for ipol in xrange(model_data.arch.get_npol()):
@@ -156,6 +158,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
 
 if __name__ == "__main__":
 
+    print("Anna's version")
     from optparse import OptionParser
 
     usage = "Usage: %prog -M <metafile> [options]"
@@ -213,9 +216,11 @@ if __name__ == "__main__":
     palign = options.palign
     smooth = options.smooth
     rot_phase = np.float64(options.rot_phase)
-    place = np.float64(options.place)
-    if place is not None:
-        rot_phase=0.0
+    if options.place is not None:
+        place = np.float64(options.place) 
+        rot_phase = 0.0
+    else:
+        place = None
     niter = int(options.niter)
     quiet = options.quiet
 
