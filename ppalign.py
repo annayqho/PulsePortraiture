@@ -79,9 +79,6 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     nchan = representative_file.nchan
     nbin = representative_file.nbin
     nsub = representative_file.nsub
-    # vap_cmd = "vap -c nchan,nbin %s"%initial_guess
-    # nchan,nbin = map(int, sub.Popen(shlex.split(vap_cmd), stdout=sub.PIPE
-    #         ).stdout.readlines()[1].split()[-2:])
     model_data = load_data(initial_guess, dedisperse=True, dededisperse=False,
             tscrunch=True, pscrunch=True, fscrunch=False, rm_baseline=True,
             flux_prof=False, refresh_arch=True, return_arch=True, quiet=quiet)
