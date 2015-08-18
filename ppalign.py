@@ -74,17 +74,17 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     datafiles = [datafile[:-1] for datafile in open(metafile, "r").readlines()]
     if outfile is None:
         outfile = metafile + ".algnd.fits"
+
     # all of the files should be identical
-    representative_file = load_data(datafiles[0])
-    nchan = representative_file.nchan
-    nbin = representative_file.nbin
-    nsub = representative_file.nsub
+    datasize = load_data(datafiles[0]).subints.shape
+    nsub = datasize[0]
+    npol = datasize[1]
+    nchan = datasize[2]
+    nbin = datasize[3]
+
     model_data = load_data(initial_guess, dedisperse=True, dededisperse=False,
             tscrunch=True, pscrunch=True, fscrunch=False, rm_baseline=True,
             flux_prof=False, refresh_arch=True, return_arch=True, quiet=quiet)
-    # get the number of polarization profiles
-    npol = model_data.arch.get_npol() # for some reason model_data.arch has 4 pol even though
-    # model_data itself is pscrunched...
     model_port = (model_data.masks * model_data.subints)[0,0]
     count = 1
     while(niter):
