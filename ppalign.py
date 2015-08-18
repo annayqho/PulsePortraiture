@@ -74,14 +74,20 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     datafiles = [datafile[:-1] for datafile in open(metafile, "r").readlines()]
     if outfile is None:
         outfile = metafile + ".algnd.fits"
-    vap_cmd = "vap -c nchan,nbin %s"%initial_guess
-    nchan,nbin = map(int, sub.Popen(shlex.split(vap_cmd), stdout=sub.PIPE
-            ).stdout.readlines()[1].split()[-2:])
+    # all of the files should be identical
+    representative_file = load_data(datafiles[0])
+    nchan = representative_file.nchan
+    nbin = representative_file.nbin
+    nsub = representative_file.nsub
+    # vap_cmd = "vap -c nchan,nbin %s"%initial_guess
+    # nchan,nbin = map(int, sub.Popen(shlex.split(vap_cmd), stdout=sub.PIPE
+    #         ).stdout.readlines()[1].split()[-2:])
     model_data = load_data(initial_guess, dedisperse=True, dededisperse=False,
             tscrunch=True, pscrunch=True, fscrunch=False, rm_baseline=True,
             flux_prof=False, refresh_arch=True, return_arch=True, quiet=quiet)
     # get the number of polarization profiles
-    npol = model_data.arch.get_npol()
+    npol = model_data.arch.get_npol() # for some reason model_data.arch has 4 pol even though
+    # model_data itself is pscrunched...
     model_port = (model_data.masks * model_data.subints)[0,0]
     count = 1
     while(niter):
@@ -117,9 +123,6 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                     results = fit_portrait(port, model,
                             np.array([phase_guess, DM_guess]), P, freqs,
                             nu_fit, None, errs, quiet=quiet)
-                    print results.phase
-                    print results.DM
-                    print results.nu_ref
                 else:  #1-channel hack
                     results = fit_phase_shift(port[0], model[0], errs[0])
                     results.DM = data.DM
