@@ -87,21 +87,27 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     while(niter):
         nsub = 0
         load_quiet = quiet
-        # aligned_port = np.zeros((nchan,nbin))
         aligned_subint = np.zeros((npol, nchan, nbin))
-        total_weights = np.zeros((npol, nchan,nbin))
+        # aligned_port = np.zeros((nchan,nbin))
+        # total_weights = np.zeros(np.shape(aligned_port))
+        total_weights = np.zeros(np.shape(aligned_subint))
         for ifile in xrange(len(datafiles)):
+            data_tot = load_data(datafiles[ifile], dedisperse=False,
+                        tscrunch=False, pscrunch=True, fscrunch=False,
+                        rm_baseline=True, quiet=load_quiet)
             data = load_data(datafiles[ifile], dedisperse=False,
                     tscrunch=False, pscrunch=False, fscrunch=False,
+                    # tscrunch=False, pscrunch=True, fscrunch=False,
                     rm_baseline=True, quiet=load_quiet)
-            DM_guess = data.DM
-            for isub in data.ok_isubs:
-                port = data.subints[isub,0,data.ok_ichans[isub]]
-                freqs = data.freqs[isub,data.ok_ichans[isub]]
-                model = model_port[data.ok_ichans[isub]]
-                P = data.Ps[isub]
-                SNRs = data.SNRs[isub,0,data.ok_ichans[isub]]
-                errs = data.noise_stds[isub,0,data.ok_ichans[isub]]
+            DM_guess = data_tot.DM
+            for isub in data_tot.ok_isubs:
+                # port = data.subints[isub,0,data.ok_ichans[isub]]
+                port = data_tot.subints[isub,0,data_tot.ok_ichans[isub]]
+                freqs = data_tot.freqs[isub,data_tot.ok_ichans[isub]]
+                model = model_port[data_tot.ok_ichans[isub]]
+                P = data_tot.Ps[isub]
+                SNRs = data_tot.SNRs[isub,0,data_tot.ok_ichans[isub]]
+                errs = data_tot.noise_stds[isub,0,data_tot.ok_ichans[isub]]
                 nu_fit = guess_fit_freq(freqs, SNRs)
                 rot_port = rotate_data(port, 0.0, DM_guess, P, freqs,
                         nu_fit)
@@ -111,6 +117,9 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                     results = fit_portrait(port, model,
                             np.array([phase_guess, DM_guess]), P, freqs,
                             nu_fit, None, errs, quiet=quiet)
+                    print results.phase
+                    print results.DM
+                    print results.nu_ref
                 else:  #1-channel hack
                     results = fit_phase_shift(port[0], model[0], errs[0])
                     results.DM = data.DM
@@ -125,6 +134,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                 # aligned_port[data.ok_ichans[isub]] += weights * \
                 #         rotate_data(port, results.phase, results.DM, P, freqs,
                 #                 results.nu_ref)
+                # total_weights[data.ok_ichans[isub]] += weights
                 for i in range(0, npol):
                     choose = data.subints[isub,i,data.ok_ichans[isub]]
                     aligned_subint[i,data.ok_ichans[isub]] += weights * \
@@ -152,6 +162,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         aligned_subint = rotate_data(aligned_subint, rot_phase)
     arch = model_data.arch
     arch.tscrunch()
+    # UNCOMMENT THIS IF YOU WANT TO REPRODUCE TIM'S CODE
     # arch.pscrunch()
     arch.set_dispersion_measure(0.0)
     for subint in arch:
@@ -160,8 +171,11 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                 #subint.set_weight(ichan, weight)
                 prof = subint.get_Profile(ipol, ichan)
                 prof.get_amps()[:] = aligned_subint[ipol, ichan]
+                # prof.get_amps()[:] = aligned_port[ichan]
                 if total_weights[ipol, ichan].sum() == 0.0:
                     subint.set_weight(ichan, 0.0)
+                # if total_weights[ichan].sum() == 0.0:
+                #     subint.set_weight(ichan, 0.0)
     arch.unload(outfile)
     if not quiet: print "\nUnloaded %s.\n"%outfile
 
