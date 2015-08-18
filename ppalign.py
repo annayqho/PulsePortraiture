@@ -16,6 +16,7 @@
 
 import os, shlex
 import numpy as np
+import matplotlib.pyplot as plt
 import subprocess as sub
 from pptoas import *
 
@@ -101,21 +102,37 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                     tscrunch=False, pscrunch=False, fscrunch=False,
                     rm_baseline=True, quiet=load_quiet)
             DM_guess = data_tot.DM
+            print(data_tot.ok_isubs)
             for isub in data_tot.ok_isubs:
-                port = data_tot.subints[isub,0,data_tot.ok_ichans[isub],:]
+                print("subint %s" %isub)
+                print(data_tot.ok_ichans[isub])
+                # 0 is here because we have pscrunched! 
+                port = data_tot.subints[isub,0,data_tot.ok_ichans[isub]]
                 freqs = data_tot.freqs[isub,data_tot.ok_ichans[isub]]
-                model = model_port[data_tot.ok_ichans[isub],:]
+                model = model_port[data_tot.ok_ichans[isub]]
                 P = data_tot.Ps[isub]
-                SNRs = data_tot.SNRs[isub,0,data_tot.ok_ichans[isub],:]
-                errs = data_tot.noise_stds[isub,0,data_tot.ok_ichans[isub],:]
+                print(P)
+                SNRs = data_tot.SNRs[isub,0,data_tot.ok_ichans[isub]]
+                print(min(SNRs), max(SNRs))
+                errs = data_tot.noise_stds[isub,0,data_tot.ok_ichans[isub]]
+                print(min(errs), max(errs))
                 nu_fit = guess_fit_freq(freqs, SNRs)
+                print(nu_fit)
                 rot_port = rotate_data(port, 0.0, DM_guess, P, freqs, nu_fit)
                 phase_guess = fit_phase_shift(rot_port.mean(axis=0),
                         model.mean(axis=0)).phase
                 if len(freqs) > 1:
-                    results = fit_portrait(port, model,
+                    print("starting fit")
+                    plt.plot(np.sum(rot_port, axis=0))
+                    plt.plot(np.sum(model/20., axis=0))
+                    plt.show()
+                    # the fit below fails because the variable Cdp somehow becomes a NaN...
+                    # Cdp is on line 687 in pplib
+                    # this only seems to happen for nsubints > 1
+                    results = fit_portrait(port, model/20.,
                             np.array([phase_guess, DM_guess]), P, freqs,
-                            nu_fit, None, errs, quiet=quiet)
+                            nu_fit, None, errs, quiet=False)
+                    print(results.phase)
                 else:  #1-channel hack
                     results = fit_phase_shift(port[0], model[0], errs[0])
                     results.DM = data.DM
@@ -133,10 +150,10 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                         rotate_data(choose,results.phase,results.DM,P,freqs,results.nu_ref)
                     total_weights[isub, i, data.ok_ichans[isub]] +=  weights
             load_quiet = True
-        for i in range(0, nsub):
-            for j in range(0, npol):
-                aligned_subint[i,j,np.where(total_weights[i,j] > 0)[0]] /= \
-                    total_weights[i,j,np.where(total_weights[i,j] > 0)[0]]
+        for ii in range(0, nsub):
+            for jj in range(0, npol):
+                aligned_subint[ii,jj,np.where(total_weights[ii,jj] > 0)[0]] /= \
+                    total_weights[ii,jj,np.where(total_weights[ii,jj] > 0)[0]]
         aligned_port = np.sum(np.sum(aligned_subint, axis=0), axis=0)
         model_port = aligned_port
         niter -= 1
@@ -150,9 +167,11 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         aligned_subint = rotate_data(aligned_subint, rot_phase)
     arch = model_data.arch
     if nfiles > 1:
+        print("tscrunching")
         arch.tscrunch()
     arch.set_dispersion_measure(0.0)
     for isub,subint in enumerate(arch):
+        print(isub)
         for ipol in range(npol):
             for ichan in range(nchan):
                 prof = subint.get_Profile(ipol, ichan)

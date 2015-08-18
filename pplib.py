@@ -1782,7 +1782,7 @@ def load_data(filename, dedisperse=False, dededisperse=False, tscrunch=False,
     epochs = [sub.get_epoch() for sub in arch]
     subtimes = [sub.get_duration() for sub in arch]
     #Get weights
-    weights = arch.get_weights()
+    weights = arch.get_weights() # [nsub, nchan] 
     weights_norm = np.where(weights == 0.0, np.zeros(weights.shape),
             np.ones(weights.shape))
     #Get off-pulse noise
