@@ -182,6 +182,7 @@ def align_archive(filename, template, outfile, tfac=2):
     tfac: factor to tscrunch by
     """
     arch = psrchive.Archive_load(filename)        
+    arch.convert_state('Stokes')
     if arch.get_dedispersed() is True:
         print("Already dedispersed")
     else:
