@@ -18,11 +18,11 @@ import os, shlex
 import numpy as np
 import matplotlib.pyplot as plt
 import subprocess as sub
+import psrchive
 from pptoas import *
 
 def psradd_archives(metafile, outfile, palign=False):
-    """
-    Add together archives using psradd.
+    """Add together archives using psradd.
 
     This function will call psradd with an option to pass -P and can be used to
     make an initial guess for align_archives.
@@ -39,9 +39,9 @@ def psradd_archives(metafile, outfile, palign=False):
     psradd_call = sub.Popen(shlex.split(psradd_cmd))
     psradd_call.wait()
 
+
 def psrsmooth_archive(archive, options="-W"):
-    """
-    Smooth an archive using psrsmooth.
+    """Smooth an archive using psrsmooth.
 
     This function will call psrsmooth with options to smooth an output archive
     from align_archives.
@@ -53,10 +53,10 @@ def psrsmooth_archive(archive, options="-W"):
     psrsmooth_call = sub.Popen(shlex.split(psrsmooth_cmd))
     psrsmooth_call.wait()
 
+
 def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         place=None, niter=1, quiet=False):
-    """
-    Iteratively align and average archives.
+    """Iteratively align and average archives.
 
     Each archive is fitted for a phase, a DM, and channel amplitudes against
     initial_guess.  The average is weighted by the fitted channel amplitudes
@@ -169,6 +169,52 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                     subint.set_weight(ichan, 0.0)
     arch.unload(outfile)
     if not quiet: print "\nUnloaded %s.\n"%outfile
+
+
+def align_archive(filename, template, outfile, tfac=2):
+    """ Align an archive across subintegrations
+
+    Parameters
+    ----------
+    filename: name of the input archive to be aligned
+    template: file to align each subint against
+    outfile: name of output file to save
+    tfac: factor to tscrunch by
+    """
+    arch = psrchive.Archive_load(filename)        
+    if arch.get_dedispersed() is True:
+        print("Already dedispersed")
+    else:
+        if arch.get_dispersion_measure() == 0:
+            print("Bad dispersion measure")
+        else:
+            arch.dedisperse()
+    if arch.get_nchan() == 1:
+        print("already fscrunched")
+    else:
+        arch.fscrunch()
+    arch.tscrunch(tfac)
+
+    arch_template = psrchive.Archive_load(template)
+    tmpl_prof = arch_template.get_Profile(0,0,0)
+
+    shifts = np.zeros(arch.get_nsubint())
+    var_shifts = np.zeros(shifts.shape)
+    psf = psrchive.ProfileShiftFit()
+    psf.set_standard(tmpl_prof)
+    for subint in range(arch.get_nsubint()):
+        data_prof = arch.get_Profile(subint,0,0)
+        psf.set_Profile(data_prof)
+        (shift, var_shift) = psf.get_shift()
+        shifts[subint] = shift
+        var_shifts[subint] = var_shift
+    shifts[np.isnan(var_shifts)] = 0.
+    arch_to_change = psrchive.Archive_load(filename)
+    arch_to_change.tscrunch(tfac)
+    for isub,subint in enumerate(arch_to_change):
+        subint.rotate_phase(shifts[isub])
+    arch_to_change.unload(outfile)
+
 
 if __name__ == "__main__":
 
