@@ -102,37 +102,27 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                     tscrunch=False, pscrunch=False, fscrunch=False,
                     rm_baseline=True, quiet=load_quiet)
             DM_guess = data_tot.DM
-            print(data_tot.ok_isubs)
             for isub in data_tot.ok_isubs:
                 print("subint %s" %isub)
-                print(data_tot.ok_ichans[isub])
                 # 0 is here because we have pscrunched! 
                 port = data_tot.subints[isub,0,data_tot.ok_ichans[isub]]
                 freqs = data_tot.freqs[isub,data_tot.ok_ichans[isub]]
                 model = model_port[data_tot.ok_ichans[isub]]
                 P = data_tot.Ps[isub]
-                print(P)
                 SNRs = data_tot.SNRs[isub,0,data_tot.ok_ichans[isub]]
-                print(min(SNRs), max(SNRs))
                 errs = data_tot.noise_stds[isub,0,data_tot.ok_ichans[isub]]
-                print(min(errs), max(errs))
                 nu_fit = guess_fit_freq(freqs, SNRs)
-                print(nu_fit)
                 rot_port = rotate_data(port, 0.0, DM_guess, P, freqs, nu_fit)
                 phase_guess = fit_phase_shift(rot_port.mean(axis=0),
                         model.mean(axis=0)).phase
                 if len(freqs) > 1:
                     print("starting fit")
-                    plt.plot(np.sum(rot_port, axis=0))
-                    plt.plot(np.sum(model/20., axis=0))
-                    plt.show()
                     # the fit below fails because the variable Cdp somehow becomes a NaN...
                     # Cdp is on line 687 in pplib
                     # this only seems to happen for nsubints > 1
                     results = fit_portrait(port, model/20.,
                             np.array([phase_guess, DM_guess]), P, freqs,
                             nu_fit, None, errs, quiet=False)
-                    print(results.phase)
                 else:  #1-channel hack
                     results = fit_phase_shift(port[0], model[0], errs[0])
                     results.DM = data.DM
@@ -171,7 +161,6 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         arch.tscrunch()
     arch.set_dispersion_measure(0.0)
     for isub,subint in enumerate(arch):
-        print(isub)
         for ipol in range(npol):
             for ichan in range(nchan):
                 prof = subint.get_Profile(ipol, ichan)
