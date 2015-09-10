@@ -173,6 +173,11 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
 
 def align_archive(filename, template, outfile, tfac=2):
     """ Align an archive across subintegrations
+    
+    Dedisperses and fscrunches the archive, then fits for the shift between 
+    the profile at each subint and the input template. 
+    Applies this shift to each subint of the non-fscrunched, non-dedispersed archive.
+    Saves this shifted archive.
 
     Parameters
     ----------
@@ -197,6 +202,13 @@ def align_archive(filename, template, outfile, tfac=2):
     arch.tscrunch(tfac)
 
     arch_template = psrchive.Archive_load(template)
+    if arch_template.get_npol() != 0:
+        print("Warning: template has > 1 pols")
+    if arch_template.get_nchan() != 0:
+        print("Warning: template has > 1 channels")
+    if arch_template.get_nsubint() !=0:
+        print("Warning: template has > 1 subints")
+    # careful: this assumes that the template has data shape (1,1,1,nbins)
     tmpl_prof = arch_template.get_Profile(0,0,0)
 
     shifts = np.zeros(arch.get_nsubint())
