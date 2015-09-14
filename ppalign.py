@@ -270,7 +270,7 @@ if __name__ == "__main__":
     parser.add_option("--tscr",
                       default=1,
                       action="store", dest="tfac", 
-                      help="Before aligning subint, tscrunch by this factor. [default=1]"
+                      help="Before aligning subint, tscrunch by this factor. [default=1]")
     parser.add_option("--place",
                       default=None,
                       action="store", metavar="place", dest="place",
