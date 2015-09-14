@@ -231,7 +231,6 @@ def align_archive(filename, template, outfile, tfac=2):
 
 if __name__ == "__main__":
 
-    print("Anna's version")
     from optparse import OptionParser
 
     usage = "Usage: %prog -M <metafile> [options]"
@@ -264,6 +263,10 @@ if __name__ == "__main__":
                       default=0.0,
                       action="store", metavar="phase", dest="rot_phase",
                       help="Additional rotation to add to averaged archive. [default=0.0]")
+    parser.add_option("-t", "--templatefile",
+                      default=None,
+                      action="store", dest="template",
+                      help="Template file used to compare and align the profile in each subintegration")
     parser.add_option("--place",
                       default=None,
                       action="store", metavar="place", dest="place",
