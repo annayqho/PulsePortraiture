@@ -171,7 +171,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     if not quiet: print "\nUnloaded %s.\n"%outfile
 
 
-def align_archive(filename, template, outfile, tfac=2):
+def align_archive(filename, template, outfile, tfac=1):
     """ Align an archive across subintegrations
     
     Dedisperses and fscrunches the archive, then fits for the shift between 
@@ -266,7 +266,11 @@ if __name__ == "__main__":
     parser.add_option("-t", "--templatefile",
                       default=None,
                       action="store", dest="template",
-                      help="Template file used to compare and align the profile in each subintegration")
+                      help="Template file used to compare and align the profile in each subintegration. [default=None]")
+    parser.add_option("--tscr",
+                      default=1,
+                      action="store", dest="tfac", 
+                      help="Before aligning subint, tscrunch by this factor. [default=1]"
     parser.add_option("--place",
                       default=None,
                       action="store", metavar="place", dest="place",
@@ -292,6 +296,12 @@ if __name__ == "__main__":
     palign = options.palign
     smooth = options.smooth
     rot_phase = np.float64(options.rot_phase)
+    if options.template is not None:
+        template = options.template
+        tfac = options.tfac
+    else:
+        template = None
+        tfac = None
     if options.place is not None:
         place = np.float64(options.place) 
         rot_phase = 0.0
@@ -306,6 +316,17 @@ if __name__ == "__main__":
         psradd_archives(metafile, outfile=tmp_file, palign=palign)
         initial_guess = tmp_file
         rm = True
+    
+    if template is not None:
+        print("template file provided, aligning subints")
+        new_metafile = "%s_aligned" %metafile
+        datafiles = [datafile[:-1] for datafile in open(metafile, "r").readlines()]
+        datafiles_new = ["%s_aligned" %datafile for datafile in datafiles]
+        np.savetxt(new_metafile, datafiles_new, fmt='%s', delimiter='\n')
+        for ifile in xrange(len(datafiles)):
+            align_archive(datafiles[ifile], template, datafiles_new[ifile], tfac=tfac)
+        metafile = new_metafile
+        
     align_archives(metafile, initial_guess=initial_guess, outfile=outfile,
             rot_phase=rot_phase, place=place, niter=niter, quiet=quiet)
     if smooth:
