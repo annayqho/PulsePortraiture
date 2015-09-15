@@ -199,14 +199,16 @@ def align_archive(filename, template, outfile, tfac=1):
         print("already fscrunched")
     else:
         arch.fscrunch()
+    tfac = int(tfac)
     arch.tscrunch(tfac)
 
+    print(template)
     arch_template = psrchive.Archive_load(template)
-    if arch_template.get_npol() != 0:
+    if arch_template.get_npol() > 1:
         print("Warning: template has > 1 pols")
-    if arch_template.get_nchan() != 0:
+    if arch_template.get_nchan() > 1:
         print("Warning: template has > 1 channels")
-    if arch_template.get_nsubint() !=0:
+    if arch_template.get_nsubint() > 1:
         print("Warning: template has > 1 subints")
     # careful: this assumes that the template has data shape (1,1,1,nbins)
     tmpl_prof = arch_template.get_Profile(0,0,0)
@@ -267,9 +269,8 @@ if __name__ == "__main__":
                       default=None,
                       action="store", dest="template",
                       help="Template file used to compare and align the profile in each subintegration. [default=None]")
-    parser.add_option("--tscr",
-                      default=1,
-                      action="store", dest="tfac", 
+    parser.add_option("--tfac",
+                      action="store", metavar="int", dest="tfac", default=1,
                       help="Before aligning subint, tscrunch by this factor. [default=1]")
     parser.add_option("--place",
                       default=None,
