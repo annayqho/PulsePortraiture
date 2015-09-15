@@ -96,10 +96,10 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         total_weights = np.zeros(np.shape(aligned_subint))
         for ifile in xrange(len(datafiles)):
             data_tot = load_data(datafiles[ifile], dedisperse=False,
-                        tscrunch=False, pscrunch=True, fscrunch=False,
+                        tscrunch=True, pscrunch=True, fscrunch=False,
                         rm_baseline=True, quiet=load_quiet)
             data = load_data(datafiles[ifile], dedisperse=False,
-                    tscrunch=False, pscrunch=False, fscrunch=False,
+                    tscrunch=True pscrunch=False, fscrunch=False,
                     rm_baseline=True, quiet=load_quiet)
             DM_guess = data_tot.DM
             for isub in data_tot.ok_isubs:
