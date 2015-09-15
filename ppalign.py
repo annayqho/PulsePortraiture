@@ -80,10 +80,10 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     # all of the files should be identical
     datasize = load_data(datafiles[0]).subints.shape
     nfiles = len(datafiles)
-    nsub = datasize[0]
     npol = datasize[1]
     nchan = datasize[2]
     nbin = datasize[3]
+    nsub = 1
 
     model_data = load_data(initial_guess, dedisperse=True, dededisperse=False,
             tscrunch=True, pscrunch=True, fscrunch=False, rm_baseline=True,
@@ -92,6 +92,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     count = 1
     while(niter):
         load_quiet = quiet
+        # 1 is here b/c there should only be 1 subint
         aligned_subint = np.zeros((nsub, npol, nchan, nbin))
         total_weights = np.zeros(np.shape(aligned_subint))
         for ifile in xrange(len(datafiles)):
@@ -99,7 +100,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                         tscrunch=True, pscrunch=True, fscrunch=False,
                         rm_baseline=True, quiet=load_quiet)
             data = load_data(datafiles[ifile], dedisperse=False,
-                    tscrunch=True pscrunch=False, fscrunch=False,
+                    tscrunch=True, pscrunch=False, fscrunch=False,
                     rm_baseline=True, quiet=load_quiet)
             DM_guess = data_tot.DM
             for isub in data_tot.ok_isubs:
@@ -120,7 +121,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                     # the fit below fails because the variable Cdp somehow becomes a NaN...
                     # Cdp is on line 687 in pplib
                     # this only seems to happen for nsubints > 1
-                    results = fit_portrait(port, model/20.,
+                    results = fit_portrait(port, model,
                             np.array([phase_guess, DM_guess]), P, freqs,
                             nu_fit, None, errs, quiet=False)
                 else:  #1-channel hack
@@ -140,10 +141,9 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                         rotate_data(choose,results.phase,results.DM,P,freqs,results.nu_ref)
                     total_weights[isub, i, data.ok_ichans[isub]] +=  weights
             load_quiet = True
-        for ii in range(0, nsub):
-            for jj in range(0, npol):
-                aligned_subint[ii,jj,np.where(total_weights[ii,jj] > 0)[0]] /= \
-                    total_weights[ii,jj,np.where(total_weights[ii,jj] > 0)[0]]
+        for ipol in range(0, npol):
+            aligned_subint[0,ipol,np.where(total_weights[0,ipol] > 0)[0]] /= \
+                total_weights[0,ipol,np.where(total_weights[0,ipol] > 0)[0]]
         aligned_port = np.sum(np.sum(aligned_subint, axis=0), axis=0)
         model_port = aligned_port
         niter -= 1
@@ -156,10 +156,10 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         phase = fit_phase_shift(prof, delta).phase
         aligned_subint = rotate_data(aligned_subint, rot_phase)
     arch = model_data.arch
-    if nfiles > 1:
-        print("tscrunching")
-        arch.tscrunch()
+    print("tscrunching")
+    arch.tscrunch()
     arch.set_dispersion_measure(0.0)
+    for isub,subint in enumerate(arch): print("TEST", isub)
     for isub,subint in enumerate(arch):
         for ipol in range(npol):
             for ichan in range(nchan):
@@ -193,8 +193,7 @@ def align_archive(filename, template, outfile, tfac=1):
     else:
         if arch.get_dispersion_measure() == 0:
             print("Bad dispersion measure")
-        else:
-            arch.dedisperse()
+        else: arch.dedisperse()
     if arch.get_nchan() == 1:
         print("already fscrunched")
     else:
@@ -202,7 +201,6 @@ def align_archive(filename, template, outfile, tfac=1):
     tfac = int(tfac)
     arch.tscrunch(tfac)
 
-    print(template)
     arch_template = psrchive.Archive_load(template)
     if arch_template.get_npol() > 1:
         print("Warning: template has > 1 pols")
@@ -316,7 +314,7 @@ if __name__ == "__main__":
         tmp_file = "ppalign.tmp.fits"
         psradd_archives(metafile, outfile=tmp_file, palign=palign)
         initial_guess = tmp_file
-        rm = True
+        #rm = True
     
     if template is not None:
         print("template file provided, aligning subints")
