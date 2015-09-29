@@ -312,6 +312,7 @@ if __name__ == "__main__":
     rm = False
     if initial_guess is None:
         tmp_file = "ppalign.tmp.fits"
+        print(metafile)
         psradd_archives(metafile, outfile=tmp_file, palign=palign)
         initial_guess = tmp_file
         #rm = True
@@ -326,6 +327,7 @@ if __name__ == "__main__":
             align_archive(datafiles[ifile], template, datafiles_new[ifile], tfac=tfac)
         metafile = new_metafile
         
+    print("Using metafile %s" %metafile)
     align_archives(metafile, initial_guess=initial_guess, outfile=outfile,
             rot_phase=rot_phase, place=place, niter=niter, quiet=quiet)
     if smooth:
