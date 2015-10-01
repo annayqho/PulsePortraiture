@@ -188,7 +188,9 @@ def align_archive(filename, template, outfile, tfac=1):
     else:
         if arch.get_dispersion_measure() == 0:
             print("Bad dispersion measure")
-        else: arch.dedisperse()
+        else: 
+            print("De-Dispersing")
+            arch.dedisperse()
     if arch.get_nchan() == 1:
         print("already fscrunched")
     else:
