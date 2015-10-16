@@ -94,7 +94,9 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         load_quiet = quiet
         aligned_subint = np.zeros((nsub, npol, nchan, nbin))
         total_weights = np.zeros(np.shape(aligned_subint))
+        total_int_time = 0
         for ifile in xrange(len(datafiles)):
+            print(datafiles[ifile])
             data_tot = load_data(datafiles[ifile], dedisperse=False,
                         tscrunch=True, pscrunch=True, fscrunch=False,
                         rm_baseline=True, quiet=load_quiet)
@@ -102,41 +104,42 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                     tscrunch=True, pscrunch=False, fscrunch=False,
                     rm_baseline=True, quiet=load_quiet)
             DM_guess = data_tot.DM
-            for isub in data_tot.ok_isubs:
-                print("subint %s" %isub)
-                # 0 is here because we have pscrunched! 
-                port = data_tot.subints[isub,0,data_tot.ok_ichans[isub]]
-                freqs = data_tot.freqs[isub,data_tot.ok_ichans[isub]]
-                model = model_port[data_tot.ok_ichans[isub]]
-                P = data_tot.Ps[isub]
-                SNRs = data_tot.SNRs[isub,0,data_tot.ok_ichans[isub]]
-                errs = data_tot.noise_stds[isub,0,data_tot.ok_ichans[isub]]
-                nu_fit = guess_fit_freq(freqs, SNRs)
-                rot_port = rotate_data(port, 0.0, DM_guess, P, freqs, nu_fit)
-                phase_guess = fit_phase_shift(rot_port.mean(axis=0),
-                        model.mean(axis=0)).phase
-                if len(freqs) > 1:
-                    print("starting fit")
-                    results = fit_portrait(port, model,
-                            np.array([phase_guess, DM_guess]), P, freqs,
-                            nu_fit, None, errs, quiet=False)
-                else:  #1-channel hack
-                    results = fit_phase_shift(port[0], model[0], errs[0])
-                    results.DM = data.DM
-                    results.DM_err = 0.0
-                    results.nu_ref = freqs[0]
-                    results.nfeval = 0
-                    results.return_code = -2
-                    results.scales = np.array([results.scale])
-                    results.scale_errs = np.array([results.scale_error])
-                    results.covariance = 0.0
-                weights = np.outer(results.scales / errs**2, np.ones(nbin))
-                for i in range(0, npol):
-                    choose = data.subints[isub,i,data.ok_ichans[isub]]
-                    aligned_subint[isub,i,data.ok_ichans[isub]] += weights * \
-                        rotate_data(choose,results.phase,results.DM,P,freqs,results.nu_ref)
-                    total_weights[isub, i, data.ok_ichans[isub]] +=  weights
-            load_quiet = True
+            ok_ichans = data_tot.ok_ichans[0] # 0 b/c isub = 0
+            port = data_tot.subints[0,0,ok_ichans]
+            freqs = data_tot.freqs[0,ok_ichans]
+            model = model_port[ok_ichans]
+            P = data_tot.Ps[0]
+            SNRs = data_tot.SNRs[0,0,ok_ichans]
+            errs = data_tot.noise_stds[0,0,ok_ichans]
+            nu_fit = guess_fit_freq(freqs, SNRs)
+            rot_port = rotate_data(port, 0.0, DM_guess, P, freqs, nu_fit)
+            phase_guess = fit_phase_shift(
+                rot_port.mean(axis=0), model.mean(axis=0)).phase
+            if len(freqs) > 1:
+                print("starting fit")
+                results = fit_portrait(port, model,
+                        np.array([phase_guess, DM_guess]), P, freqs,
+                        nu_fit, None, errs, quiet=False)
+            else:  #1-channel hack
+                print("Warning: Only one frequency channel...")
+                results = fit_phase_shift(port[0], model[0], errs[0])
+                results.DM = data.DM
+                results.DM_err = 0.0
+                results.nu_ref = freqs[0]
+                results.nfeval = 0
+                results.return_code = -2
+                results.scales = np.array([results.scale])
+                results.scale_errs = np.array([results.scale_error])
+                results.covariance = 0.0
+            weights = np.outer(results.scales / errs**2, np.ones(nbin))
+            data_arch = data.arch
+            data_arch.convert_state('Stokes')
+            total_int_time += data_arch.integration_length()
+            for i in range(0, npol):
+                choose = data_arch.get_data()[0,i,ok_ichans]
+                aligned_subint[0,i,ok_ichans] += weights * rotate_data(
+                    choose,results.phase,results.DM,P,freqs,results.nu_ref)
+                total_weights[0, i, ok_ichans] +=  weights
         for ipol in range(0, npol):
             aligned_subint[0,ipol,np.where(total_weights[0,ipol] > 0)[0]] /= \
                 total_weights[0,ipol,np.where(total_weights[0,ipol] > 0)[0]]
@@ -152,16 +155,14 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         phase = fit_phase_shift(prof, delta).phase
         aligned_subint = rotate_data(aligned_subint, rot_phase)
     arch = model_data.arch
-    print("tscrunching")
-    arch.tscrunch()
+    arch.convert_state('Stokes')
     arch.set_dispersion_measure(0.0)
-    for isub,subint in enumerate(arch):
-        for ipol in range(npol):
-            for ichan in range(nchan):
-                prof = subint.get_Profile(ipol, ichan)
-                prof.get_amps()[:] = aligned_subint[isub, ipol, ichan]
-                if total_weights[isub, ipol, ichan].sum() == 0.0:
-                    subint.set_weight(ichan, 0.0)
+    for ipol in range(npol):
+        for ichan in range(nchan):
+            arch.get_data()[0,ipol,ichan] = aligned_subint[0,ipol,ichan]
+            if total_weights[0,ipol,ichan].sum() == 0.0:
+                subint.set_weight(ichan,0.0)
+    arch.integration_length() = total_int_time
     arch.unload(outfile)
     if not quiet: print "\nUnloaded %s.\n"%outfile
 
