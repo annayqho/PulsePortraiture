@@ -152,11 +152,16 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         delta = prof.max() * gaussian_profile(len(prof), place, 0.0001)
         phase = fit_phase_shift(prof, delta).phase
         aligned_subint = rotate_data(aligned_subint, rot_phase)
-    arch = model_data.arch
+    # create template for the output
+    tmp = "psradd.tmp.fits"
+    psradd_archives(metafile, outfile=tmp, palign=True)
+    template_out = load_data(tmp, dedisperse=True, dededisperse=False,
+            tscrunch=True, pscrunch=True, fscrunch=False, rm_baseline=True,
+            flux_prof=False, refresh_arch=True, return_arch=True, quiet=quiet)
+    arch = template_out.arch
     print("tscrunching")
     arch.tscrunch()
     arch.set_dispersion_measure(0.0)
-    for isub,subint in enumerate(arch): print("TEST", isub)
     for isub,subint in enumerate(arch):
         for ipol in range(npol):
             for ichan in range(nchan):
