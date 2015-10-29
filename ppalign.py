@@ -139,6 +139,9 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                         rotate_data(choose,results.phase,results.DM,P,freqs,results.nu_ref)
                     total_weights[isub, i, data.ok_ichans[isub]] +=  weights
             load_quiet = True
+        for ipol in range(0, npol):
+            aligned_subint[0, ipol, np.where(total_weights[0, ipol]>0)[0]] /= \
+                total_weights[0, ipol, np.where(total_weights[0, ipol] > 0)[0]]
         aligned_port = np.sum(np.sum(aligned_subint, axis=0), axis=0)
         model_port = aligned_port
         niter -= 1
