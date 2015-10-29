@@ -92,10 +92,11 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     count = 1
     while(niter):
         load_quiet = quiet
-        # 1 is here b/c there should only be 1 subint
         aligned_subint = np.zeros((nsub, npol, nchan, nbin))
         total_weights = np.zeros(np.shape(aligned_subint))
+        total_int_time = 0
         for ifile in xrange(len(datafiles)):
+            print(datafiles[ifile])
             data_tot = load_data(datafiles[ifile], dedisperse=False,
                         tscrunch=True, pscrunch=True, fscrunch=False,
                         rm_baseline=True, quiet=load_quiet)
@@ -138,9 +139,6 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                         rotate_data(choose,results.phase,results.DM,P,freqs,results.nu_ref)
                     total_weights[isub, i, data.ok_ichans[isub]] +=  weights
             load_quiet = True
-        for ipol in range(0, npol):
-            aligned_subint[0,ipol,np.where(total_weights[0,ipol] > 0)[0]] /= \
-                total_weights[0,ipol,np.where(total_weights[0,ipol] > 0)[0]]
         aligned_port = np.sum(np.sum(aligned_subint, axis=0), axis=0)
         model_port = aligned_port
         niter -= 1
@@ -169,6 +167,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                 prof.get_amps()[:] = aligned_subint[isub, ipol, ichan]
                 if total_weights[isub, ipol, ichan].sum() == 0.0:
                     subint.set_weight(ichan, 0.0)
+    arch.integration_length() = total_int_time
     arch.unload(outfile)
     if not quiet: print "\nUnloaded %s.\n"%outfile
 
@@ -195,7 +194,9 @@ def align_archive(filename, template, outfile, tfac=1):
     else:
         if arch.get_dispersion_measure() == 0:
             print("Bad dispersion measure")
-        else: arch.dedisperse()
+        else: 
+            print("De-Dispersing")
+            arch.dedisperse()
     if arch.get_nchan() == 1:
         print("already fscrunched")
     else:
