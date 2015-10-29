@@ -167,7 +167,6 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                 prof.get_amps()[:] = aligned_subint[isub, ipol, ichan]
                 if total_weights[isub, ipol, ichan].sum() == 0.0:
                     subint.set_weight(ichan, 0.0)
-    arch.integration_length() = total_int_time
     arch.unload(outfile)
     if not quiet: print "\nUnloaded %s.\n"%outfile
 
