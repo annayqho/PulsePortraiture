@@ -96,7 +96,6 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
         total_weights = np.zeros(np.shape(aligned_subint))
         total_int_time = 0
         for ifile in xrange(len(datafiles)):
-            print(datafiles[ifile])
             data_tot = load_data(datafiles[ifile], dedisperse=False,
                         tscrunch=True, pscrunch=True, fscrunch=False,
                         rm_baseline=True, quiet=load_quiet)
@@ -105,7 +104,6 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                     rm_baseline=True, quiet=load_quiet)
             DM_guess = data_tot.DM
             for isub in data_tot.ok_isubs:
-                print("subint %s" %isub)
                 # 0 is here because we have pscrunched! 
                 port = data_tot.subints[isub,0,data_tot.ok_ichans[isub]]
                 freqs = data_tot.freqs[isub,data_tot.ok_ichans[isub]]
