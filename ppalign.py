@@ -116,7 +116,6 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
                 phase_guess = fit_phase_shift(rot_port.mean(axis=0),
                         model.mean(axis=0)).phase
                 if len(freqs) > 1:
-                    print("starting fit")
                     results = fit_portrait(port, model,
                             np.array([phase_guess, DM_guess]), P, freqs,
                             nu_fit, None, errs, quiet=False)
