@@ -91,6 +91,7 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     model_port = (model_data.masks * model_data.subints)[0,0]
     count = 1
     while(niter):
+        print("iteration")
         load_quiet = quiet
         aligned_subint = np.zeros((nsub, npol, nchan, nbin))
         total_weights = np.zeros(np.shape(aligned_subint))
