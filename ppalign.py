@@ -77,41 +77,50 @@ def align_archives(metafile, initial_guess, outfile=None, rot_phase=0.0,
     if outfile is None:
         outfile = metafile + ".algnd.fits"
 
-    # all of the files should be identical
-    datasize = load_data(datafiles[0]).subints.shape
+    # all of the files should have the same nchan,npol, etc as the template
     nfiles = len(datafiles)
-    npol = datasize[1]
-    nchan = datasize[2]
-    nbin = datasize[3]
-    nsub = 1
+    vap_cmd = "vap -c nchan,npol,nbin,nsub %s" %initial_guess
+    nchan,npol,nbin,nsub = map(int, sub.Popen(shlex.split(vap_cmd), 
+                               stdout=sub.PIPE).stdout.readlines()[1].split()[-4:])
 
+    # use the initial guess to generate a model portrait
     model_data = load_data(initial_guess, dedisperse=True, dededisperse=False,
             tscrunch=True, pscrunch=True, fscrunch=False, rm_baseline=True,
             flux_prof=False, refresh_arch=True, return_arch=True, quiet=quiet)
+    # model_data.masks has shape (1,1,nchan,nbin)
+    # model_data.subints has shape (1,1,nchan,nbin)
+    # 1,1 because data has been tscrunched (nsub=1) and pscrunched (npol=1)
     model_port = (model_data.masks * model_data.subints)[0,0]
+
     count = 1
     while(niter):
-        print("iteration")
+        print("Doing iteration %d..." %count)
         load_quiet = quiet
         aligned_subint = np.zeros((nsub, npol, nchan, nbin))
         total_weights = np.zeros(np.shape(aligned_subint))
         total_int_time = 0
         for ifile in xrange(len(datafiles)):
+            # Load polarization-scrunched profile, b/c we only use total intensity to align
             data_tot = load_data(datafiles[ifile], dedisperse=False,
                         tscrunch=True, pscrunch=True, fscrunch=False,
                         rm_baseline=True, quiet=load_quiet)
+            # Load a version where we preserve polarization information
             data = load_data(datafiles[ifile], dedisperse=False,
                     tscrunch=True, pscrunch=False, fscrunch=False,
                     rm_baseline=True, quiet=load_quiet)
+
             DM_guess = data_tot.DM
             for isub in data_tot.ok_isubs:
                 # 0 is here because we have pscrunched! 
+                # portrait has shape (nchan, nbin)
                 port = data_tot.subints[isub,0,data_tot.ok_ichans[isub]]
                 freqs = data_tot.freqs[isub,data_tot.ok_ichans[isub]]
                 model = model_port[data_tot.ok_ichans[isub]]
                 P = data_tot.Ps[isub]
                 SNRs = data_tot.SNRs[isub,0,data_tot.ok_ichans[isub]]
                 errs = data_tot.noise_stds[isub,0,data_tot.ok_ichans[isub]]
+                # estimate a zero-covariance frequency: in other words, 
+                # a "center of mass" frequency, mass = SNR
                 nu_fit = guess_fit_freq(freqs, SNRs)
                 rot_port = rotate_data(port, 0.0, DM_guess, P, freqs, nu_fit)
                 phase_guess = fit_phase_shift(rot_port.mean(axis=0),
