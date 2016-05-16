@@ -1,3 +1,10 @@
+This is code for aligning and summing Terzan 5 pulsar data.
+
+For example, to sum L-band data from a particular directory,
+modify then call the script ``make_summed_profs_Lband.py``
+
+See below for Tim Pennucci's description of Pulse Portraiture.
+
 ===================
 =Pulse Portraiture=
 ===================
